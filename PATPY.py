@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import xlrd
 import matplotlib.pyplot as plt
+import glob
+from collections import defaultdict
 corpora_text = []
 corpora_data = []
 time_freq = {}
@@ -20,39 +22,51 @@ Templates = []
 Umbral = 0
 
 
+def loadFullCorpora():
+    files =  glob.glob("/home/juan/workspace/PATPY/Corpora/*.xls")
+    for fileDir in files:
+        print fileDir
+        loadDataCorpora(fileDir)
+    
 
 def loadCorpora():
-    corpora = xlrd.open_workbook("./Corpora/Corpus08.xls")
-    print "The number of worksheets is ", corpora.nsheets
-    for sheet in corpora.sheets():
-        nrows = sheet.nrows
-        ncols = sheet.ncols
-        for i in range(nrows):
-            if(sheet.cell_value(i,15) == 'es'):
-                text = sheet.cell_value(i,ncols-1).encode('utf-8')
-                for word in text.split():
-                    if word.startswith( 'http:'):
-                        text = text.replace(word, "")
-                if not text in corpora_text:
-                    corpora_text.append(text)
-                    print text
-    print 'Corpus finalizado con ' + str(len(corpora_text)) + ' entradas'
+    try:
+        corpora = xlrd.open_workbook("./Corpora/Corpus08.xls")
+        
+        print "The number of worksheets is ", corpora.nsheets
+        for sheet in corpora.sheets():
+            nrows = sheet.nrows
+            ncols = sheet.ncols
+            for i in range(nrows):
+                if(sheet.cell_value(i,15) == 'es'):
+                    text = str(sheet.cell_value(i,ncols-1).encode('utf-8'))
+                    for word in text.split():
+                        if word.startswith( 'http:'):
+                            text = text.replace(word, "")
+                    if not text in corpora_text:
+                        corpora_text.append(text)
+                        print text
+        print 'Corpus finalizado con ' + str(len(corpora_text)) + ' entradas'
+    except UnicodeDecodeError, e:
+        print "The error is there !"
 
-def loadDataCorpora():
-    corpora = xlrd.open_workbook("./Corpora/Corpus08.xls")
+def loadDataCorpora(fileDir):
+    print fileDir
+    corpora = xlrd.open_workbook(fileDir, encoding_override='cp1252')
     print "The number of worksheets is ", corpora.nsheets
     for sheet in corpora.sheets():
         nrows = sheet.nrows
         ncols = sheet.ncols
         for i in range(nrows):
             if(sheet.cell_value(i,15) == 'es'):
-                text = sheet.cell_value(i,ncols-1).encode('utf-8')
-                for word in text.split():
-                    if word.startswith( 'http:'):
-                        text = text.replace(word, "")
+                text = sheet.cell_value(i,ncols-1).encode('ascii','replace')
+                #for word in text.split():
+                    #if word.startswith( 'http:'):
+                       # text = text.replace(word, "")
                 if not text in corpora_text:
-                    data = sheet.cell_value(i,2).encode('utf-8')
+                    data = sheet.cell_value(i,2).encode('ascii')
                     corpora_data.append(data)
+                    corpora_text.append(text.lower())
     print 'Corpus finalizado con ' + str(len(corpora_data)) + ' entradas'
     
 
@@ -142,28 +156,71 @@ def wordFrecuency():
 
 def timeFrecuency():
     for data in corpora_data:
-        time = data[:13] 
+        time = data[11:13] 
         if time in time_freq:
             time_freq[time] += 1
         else:
             time_freq[time] = 1
             print time
     for key, value in time_freq.iteritems():
-                top_words[key.decode('utf-8')[11:13]] = value
+                top_words[key.decode('utf-8')] = value
                 print "%s: %s" % (key, value)
     
 
+def userRTFrecuency():
+    for text in corpora_text:
+        words = sentenceFilter(text)
+        for word in words.split():
+            if (word.find('rt')) > -1:
+                print word.find('rt')
+                print word
+                print words
+    for key, value in sorted(hashtags_freq.iteritems(), key=lambda (k,v): (v,k)):
+        if value > (limit*2):
+                top_words[key] = value
+                print "%s: %s" % (key, value)
 
+def topicAnalysis():
+    terms = {}
+    terms["paro"] = ["paro", "empleo"]
+    terms["economia"] = ["economia"]
+    terms["sanidad"] = ["sanidad"]
+    terms["politica"] = ["politico", "politicos", "politica"]
+    terms["corrupcion"] = ["corrupcion","fraude"]
+    tweetsByTerm = defaultdict(list)
+    for text in corpora_text:
+        isAnyClassified = False
+        for key,value in terms.iteritems():
+            isClassified = False
+            for w in value:
+                if w in text and not isClassified:
+                    tweetsByTerm[key].append(text)
+                    isClassified = True
+                    isAnyClassified = True
+                    print w +" -> "+text
+        if not isAnyClassified:
+            
+            tweetsByTerm["unclassified"].append(text)
+    for term in tweetsByTerm:
+        print term + " : "+str(len(tweetsByTerm[term]))
+    print str(len(corpora_text))
+    for i in tweetsByTerm["unclassified"]:
+        print i
+        
+   
+    
+    
+    
 
 def drawPlot(): 
     D = top_words
+    print top_words
     keylist = []
     valuelist = []
     for n,k in sorted(top_words.iteritems()):
+        print n, k
         keylist.append(n)
         valuelist.append(k)
-    print type(D.values())
-    print D.values()
     plt.bar(range(len(D)), valuelist, align='center')
     plt.xticks(range(len(D)), keylist)
 
@@ -198,11 +255,17 @@ def patternAlgorithm():
 
     
 #loadCorpora()
-#hashtagsFrecuency()
-#wordFrecuency()
-#bigramsFrecuency()
+
+
+
+
+loadFullCorpora()
 #trigramsFrecuency()
-loadDataCorpora()
-timeFrecuency()
+#bigramsFrecuency()
+#wordFrecuency()
+#timeFrecuency()
+#userRTFrecuency()
+#hashtagsFrecuency()
+topicAnalysis()
 drawPlot()
 
