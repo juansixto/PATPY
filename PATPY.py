@@ -2,6 +2,8 @@
 import xlrd
 import matplotlib.pyplot as plt
 import glob
+from pylab import *
+from pylab import *
 from collections import defaultdict
 corpora_text = []
 corpora_data = []
@@ -20,6 +22,7 @@ Attributes = []
 Values = []
 Templates = []
 Umbral = 0
+terms = {}
 
 
 def loadFullCorpora():
@@ -181,7 +184,6 @@ def userRTFrecuency():
                 print "%s: %s" % (key, value)
 
 def topicAnalysis():
-    terms = {}
     terms["paro"] = ["paro", "empleo"]
     terms["economia"] = ["economia"]
     terms["sanidad"] = ["sanidad"]
@@ -198,27 +200,53 @@ def topicAnalysis():
                     isClassified = True
                     isAnyClassified = True
                     print w +" -> "+text
-        if not isAnyClassified:
-            
+        if not isAnyClassified:  
             tweetsByTerm["unclassified"].append(text)
     for term in tweetsByTerm:
         print term + " : "+str(len(tweetsByTerm[term]))
     print str(len(corpora_text))
-    for i in tweetsByTerm["unclassified"]:
-        print i
+    for key,value in tweetsByTerm.iteritems():
+        print key + "-------------------->"
+        extractHashtags(value)
         
+
+
+def extractHashtags(list):
+    for text in list:
+        words = sentenceFilter(text)
+        for word in words.split():
+            if word.startswith('#'):
+                if word in hashtags_freq:
+                    hashtags_freq[word] += 1
+                else:
+                    hashtags_freq[word] = 1
+    for key, value in sorted(hashtags_freq.iteritems(), key=lambda (k,v): (v,k)):
+        if value > (limit):
+                top_words[key] = value
+    print hashtags_freq.items()
+    print hashtags_freq.keys()
+    print hashtags_freq.values()
+    drawBarhPlot(hashtags_freq)
    
     
-    
+def drawBarhPlot(list_hash):
+    pos = arange(6)+.6
+    figure(1)
+    barh(pos,list_hash.values(), align='center')
+    yticks(pos, (list_hash.keys()))
+    xlabel('Number of Hashtags')
+    title('Hashtag Frecuency')
+    grid(True)   
+    show() 
     
 
 def drawPlot(): 
     D = top_words
-    print top_words
+    #print top_words
     keylist = []
     valuelist = []
     for n,k in sorted(top_words.iteritems()):
-        print n, k
+        #print n, k
         keylist.append(n)
         valuelist.append(k)
     plt.bar(range(len(D)), valuelist, align='center')
